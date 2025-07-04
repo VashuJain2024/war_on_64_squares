@@ -162,6 +162,7 @@ renderBoard();
 let localStream;
 let peerConnection;
 let isMuted = false;
+let pendingCandidates = [];
 
 const startBtn = document.getElementById("startBtn");
 const muteBtn = document.getElementById("muteBtn");
@@ -178,6 +179,8 @@ const config = {
 };
 
 startBtn.onclick = async () => {
+    if (peerConnection) return; // prevent duplicate connections
+
     try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
@@ -224,6 +227,8 @@ muteBtn.onclick = () => {
 
 // Receive offer
 socket.on("voice-offer", async ({ offer }) => {
+    if (peerConnection) return; // already connected
+
     peerConnection = new RTCPeerConnection(config);
 
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -251,12 +256,28 @@ socket.on("voice-offer", async ({ offer }) => {
     socket.emit("voice-answer", { answer });
     startBtn.disabled = true;
     muteBtn.disabled = false;
+
+    // Flush ICE candidates
+    pendingCandidates.forEach(candidate => {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+    pendingCandidates = [];
 });
 
 socket.on("voice-answer", async ({ answer }) => {
     await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+
+    // Flush ICE candidates
+    pendingCandidates.forEach(candidate => {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+    pendingCandidates = [];
 });
 
 socket.on("ice-candidate", ({ candidate }) => {
-    peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    if (peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    } else {
+        pendingCandidates.push(candidate);
+    }
 });
