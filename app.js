@@ -53,6 +53,19 @@ io.on('connection', (socket) => {
 
         // Store roomId in socket for cleanup on disconnect
         socket.data.roomId = roomId;
+
+        // For voice chat
+        socket.on("voice-offer", data => {
+            socket.to(roomId).emit("voice-offer", { ...data, sender: socket.id });
+        });
+
+        socket.on("voice-answer", data => {
+            socket.to(roomId).emit("voice-answer", { ...data, sender: socket.id });
+        });
+
+        socket.on("ice-candidate", data => {
+            socket.to(roomId).emit("ice-candidate", { ...data, sender: socket.id });
+        });
     });
 
     socket.on('move', (move) => {
