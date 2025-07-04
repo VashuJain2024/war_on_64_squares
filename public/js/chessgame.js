@@ -167,7 +167,14 @@ const startBtn = document.getElementById("startBtn");
 const muteBtn = document.getElementById("muteBtn");
 
 const config = {
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },  // STUN
+        {
+            urls: "turn:relay.metered.ca:443",
+            username: "openai",
+            credential: "openai"
+        }
+    ]
 };
 
 startBtn.onclick = async () => {
