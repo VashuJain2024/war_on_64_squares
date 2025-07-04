@@ -178,7 +178,12 @@ const config = {
 };
 
 startBtn.onclick = async () => {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+        alert("Microphone access is required for voice chat.");
+        return;
+    }
     peerConnection = new RTCPeerConnection(config);
 
     localStream.getTracks().forEach(track => {
@@ -187,21 +192,25 @@ startBtn.onclick = async () => {
 
     peerConnection.onicecandidate = e => {
         if (e.candidate) {
-            socket.emit("ice-candidate", { candidate: e.candidate, roomId });
+            socket.emit("ice-candidate", { candidate: e.candidate });
         }
     };
 
     peerConnection.ontrack = event => {
-        const audio = document.createElement("audio");
-        audio.srcObject = event.streams[0];
-        audio.autoplay = true;
-        document.body.appendChild(audio);
+        let remoteAudio = document.getElementById("remoteAudio");
+        if (!remoteAudio) {
+            remoteAudio = document.createElement("audio");
+            remoteAudio.id = "remoteAudio";
+            remoteAudio.autoplay = true;
+            document.body.appendChild(remoteAudio);
+        }
+        remoteAudio.srcObject = event.streams[0];
     };
 
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
 
-    socket.emit("voice-offer", { offer, roomId });
+    socket.emit("voice-offer", { offer });
     startBtn.disabled = true;
     muteBtn.disabled = false;
 };
@@ -231,7 +240,7 @@ socket.on("voice-offer", async ({ offer }) => {
 
     peerConnection.onicecandidate = e => {
         if (e.candidate) {
-            socket.emit("ice-candidate", { candidate: e.candidate, roomId });
+            socket.emit("ice-candidate", { candidate: e.candidate });
         }
     };
 
@@ -239,7 +248,7 @@ socket.on("voice-offer", async ({ offer }) => {
     const answer = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answer);
 
-    socket.emit("voice-answer", { answer, roomId });
+    socket.emit("voice-answer", { answer });
     startBtn.disabled = true;
     muteBtn.disabled = false;
 });
